@@ -1,0 +1,70 @@
+version: '2'
+
+volumes:
+    grafana_data: {}
+
+networks:
+  front-tier:
+    driver: bridge
+  back-tier:
+    driver: bridge
+
+services:
+  grafana:
+    image: grafana/grafana
+    depends_on:
+      - prometheus
+      - influxdb
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    env_file:
+      - config.monitoring
+    networks:
+      - back-tier
+      - front-tier
+
+  influxdb:
+    image: influxdb:latest
+    container_name: influxdb
+    ports:
+      - "8083:8083"
+      - "8086:8086"
+      - "8090:8090"
+    env_file:
+      - 'env.influxdb'
+    networks:
+      - back-tier
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    links:
+      - influxdb
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    networks:
+      - back-tier
+ 
+#  kafka:
+#    image: spotify/kafka
+#	container_name: kafka
+#    ports:
+#      - "2181:2181"
+#      - "9092:9092"
+#    env_file:
+#      - 'ADVERTISED_HOST=localhost'
+#	  - 'ADVERTISED_PORT=9092'
+#    networks:
+#      - back-tier
+
+  kapacitor:
+    image: kapacitor
+    container_name: kapacitor
+    ports:
+      - "9092:9092"
+    volumes:
+      - ./kapacitor.conf:/etc/kapacitor/kapacitor.conf:ro
+    networks:
+      - back-tier
